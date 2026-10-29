@@ -1,5 +1,6 @@
 """Scope-limited Git checkpoints without changing HEAD or the user's index."""
 import copy
+import hashlib
 import json
 import os
 import re
@@ -66,10 +67,12 @@ def prepare(project,input_path,scope_path,destination):
         if not safe_path(project,p).is_file():raise ReviewError('校对范围文件不存在')
     destination.mkdir(parents=True)
     try:
+        data=copy.deepcopy(data)
         for asset in data['assets']:
             src=safe_path(source.parent,asset['path']);dst=safe_path(destination,asset['path'])
             dst.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(src,dst)
-        data=copy.deepcopy(data);data['base_commit']=None
+            asset['sha256']=hashlib.sha256(dst.read_bytes()).hexdigest()
+        data['base_commit']=None
         ref='round-'+uuid.uuid4().hex
         data['git']={'ref':f'refs/review-workbench/{ref}','scope':scope,'portable':False}
         atomic_json(destination/'package.json',data)
@@ -120,6 +123,7 @@ def git_diff(before,after):
 
 
 def compare(root,current):
+    from .history import active_entries,signature
     store=Store(root);data=store.package
     verify_baseline(root,data)
     if not isinstance(current,dict) or current.get('package_id')!=data['package_id'] or current.get('base_commit')!=data['base_commit']:
@@ -130,8 +134,7 @@ def compare(root,current):
     by_target={t['target_id']:t['blocks'] for t in targets}
     items={i['id']:i for i in data['items']}
     results=[];conflicts=[];seen={}
-    for submission in store.submissions():
-        for d in submission['decisions']:
+    for submission,d in active_entries(store.submissions()):
             item=items[d['item_id']];target=d['target_id']
             entry={'item_id':d['item_id'],'target_id':target,'submission_id':submission['submission_id'],
                    'action':d['action'],'baseline':item['baseline'],'decision':d}
@@ -154,6 +157,13 @@ def compare(root,current):
                 prior.append({'blocks':desired,'submission_id':submission['submission_id']})
                 if entry['status']=='conflict':conflicts.append({'target_id':target,'item_id':item['id'],'reason':'diverged','submission_ids':[submission['submission_id']]})
             results.append(entry)
+    grouped={}
+    for entry in results:grouped.setdefault(entry['target_id'],[]).append(entry)
+    for target,entries in grouped.items():
+        if len({signature(e['decision']) for e in entries})>1:
+            for entry in entries:entry['status']='conflict'
+            if not any(c['target_id']==target and c['reason']=='different_human_decisions' for c in conflicts):
+                conflicts.append({'target_id':target,'reason':'different_human_decisions','submission_ids':[e['submission_id'] for e in entries]})
     output={'package_id':data['package_id'],'base_commit':data['base_commit'],'items':results,'conflicts':conflicts}
     with store.lock():atomic_json(store.root/'comparison.json',output)
     return output

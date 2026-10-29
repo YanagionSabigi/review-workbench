@@ -70,6 +70,7 @@ class Store:
         self.root=Path(root).resolve()
         self.package=validate_package(read_json(self.root/'package.json'),self.root)
         self.material_hash=fingerprint(self.package)
+        self.asset_stats={}
         self.mutex=threading.RLock()
         with self.lock():
             if not (self.root/'drafts.json').exists():
@@ -84,6 +85,16 @@ class Store:
     def _assert_frozen(self):
         if fingerprint(read_json(self.root/'package.json'))!=self.material_hash:
             raise ReviewError('审核材料已改变，请建立新一轮审核',409)
+        from .model import safe_path
+        for asset in self.package['assets']:
+            if not asset.get('sha256'):continue
+            path=safe_path(self.root,asset['path'])
+            try:stat=path.stat()
+            except OSError:raise ReviewError('审核资源缺失',409)
+            key=(stat.st_size,stat.st_mtime_ns)
+            if self.asset_stats.get(asset['id'])!=key:
+                if hashlib.sha256(path.read_bytes()).hexdigest()!=asset['sha256']:raise ReviewError('审核资源已改变，请建立新一轮审核',409)
+                self.asset_stats[asset['id']]=key
 
     def _drafts(self):
         self._assert_frozen()
@@ -120,8 +131,9 @@ class Store:
 
     def bulk_candidates(self,ids):
         drafts=self._drafts()['items']
+        submitted={d['item_id'] for s in self.submissions() for d in s['decisions']}
         return [i['id'] for i in self.package['items'] if i['id'] in ids and not i['requires_human']
-                and i.get('proposal') is not None and not has_human_draft(drafts.get(i['id'],{}))]
+                and i['id'] not in submitted and i.get('proposal') is not None and not has_human_draft(drafts.get(i['id'],{}))]
 
     def bulk_accept(self,ids,expected_revision):
         with self.lock():
@@ -147,4 +159,28 @@ class Store:
             atomic_json(self.root/'submissions'/f"{result['submission_id']}.json",result)
             current['revision']+=1
             atomic_json(self.root/'drafts.json',current)
+            return result
+
+    def resolve_conflict(self,target_id,submission_id,item_id,expected_revision):
+        from .history import active_entries
+        with self.lock():
+            draft=self._drafts()
+            if draft['revision']!=expected_revision:raise ReviewError('草稿已更新',409)
+            entries=active_entries(self.submissions())
+            chosen=next((d for s,d in entries if s['submission_id']==submission_id and d['item_id']==item_id and d['target_id']==target_id),None)
+            if chosen is None:raise ReviewError('待选择的决定不存在或已被解决',409)
+            result={'schema_version':'1','package_id':self.package['package_id'],'base_commit':self.package['base_commit'],
+                    'submission_id':uuid.uuid4().hex,'decisions':[copy.deepcopy(chosen)],
+                    'resolves':[{'submission_id':s['submission_id'],'target_id':target_id} for s,d in entries if d['target_id']==target_id]}
+            # Multiple items in the same submission may concern one target.
+            result['resolves']=list({(r['submission_id'],r['target_id']):r for r in result['resolves']}.values())
+            validate_schema(result,'submission')
+            atomic_json(self.root/'submissions'/f"{result['submission_id']}.json",result)
+            for item in self.package['items']:
+                if item['target_id']==target_id and item['id']!=item_id and item['id'] in draft['items']:
+                    draft['items'][item['id']]['mode']=None
+            draft['items'][item_id]={'mode':chosen['action'],'comment':chosen.get('instruction',''),'quotes':chosen.get('quotes',[]),'touched':chosen['action']=='edit','edits':{b['id']:b.get('rows') if b['type']=='table' else b.get('text') for b in chosen.get('blocks',[]) if b['type']!='image'}}
+            draft['revision']+=1;atomic_json(self.root/'drafts.json',draft)
+            from .transfer import history_conflicts
+            atomic_json(self.root/'comparison.json',history_conflicts(self))
             return result

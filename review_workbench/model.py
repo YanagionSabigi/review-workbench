@@ -1,5 +1,6 @@
 """Protocol validation and deterministic interpretation of human decisions."""
 import copy
+import hashlib
 import json
 import re
 from pathlib import Path, PurePosixPath
@@ -44,11 +45,15 @@ def validate_package(data, root=None):
         if len(ids) != len(set(ids)): raise ReviewError(f'{label}编号重复')
     groups = {g['id'] for g in data['groups']}
     assets = {a['id']: a for a in data['assets']}
+    if len({a['path'] for a in assets.values()})!=len(assets):raise ReviewError('资源路径重复')
     facets = {f['id']: {v['id'] for v in f['options']} for f in data['facets']}
     for asset in assets.values():
+        if not asset['path'].startswith('assets/'):raise ReviewError('资源必须放在 assets/ 目录')
         if root is not None:
             path = safe_path(root, asset['path'])
             if not path.is_file(): raise ReviewError(f"缺少资源：{asset['path']}")
+            if asset.get('sha256') and hashlib.sha256(path.read_bytes()).hexdigest()!=asset['sha256']:
+                raise ReviewError('资源内容与审核基准不一致',409)
         else: safe_path(Path.cwd(), asset['path'])
         if asset.get('full_asset_id') and asset['full_asset_id'] not in assets:
             raise ReviewError('缺少整页资源')
