@@ -159,6 +159,8 @@ class Store:
             atomic_json(self.root/'submissions'/f"{result['submission_id']}.json",result)
             current['revision']+=1
             atomic_json(self.root/'drafts.json',current)
+            from .transfer import history_conflicts
+            atomic_json(self.root/'comparison.json',history_conflicts(self))
             return result
 
     def resolve_conflict(self,target_id,submission_id,item_id,expected_revision):

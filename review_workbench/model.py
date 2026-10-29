@@ -3,6 +3,9 @@ import copy
 import hashlib
 import json
 import re
+import shutil
+import subprocess
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
 
 from jsonschema import Draft202012Validator
@@ -116,7 +119,22 @@ def resolve_decision(item, draft):
         validate_quotes(item,draft.get('quotes',[]))
         result.update(instruction=draft['comment'].strip(),quotes=copy.deepcopy(draft.get('quotes',[])),processing='needs_agent')
     else: raise ReviewError('请选择处理方式')
+    if 'blocks' in result:
+        validate_tex(tuple(b['text'] for b in result['blocks'] if b['type']=='tex'))
     return result
+
+
+@lru_cache(maxsize=2048)
+def validate_tex(texts):
+    if not texts:return
+    node=shutil.which('node')
+    if not node:raise ReviewError('提交公式需要 Node.js；普通文本审核不受影响。可先用修改意见反馈。')
+    try:
+        result=subprocess.run([node,str(ROOT/'web/scripts/validate-tex.cjs')],input=json.dumps(texts).encode(),capture_output=True,timeout=8)
+        payload=json.loads(result.stdout)
+    except (OSError,ValueError,subprocess.TimeoutExpired) as exc:raise ReviewError('公式校验未完成，请检查本地 Node.js 和公式资源') from exc
+    if result.returncode or not payload.get('valid'):
+        raise ReviewError('公式无法渲染：'+str(payload.get('error','未知错误'))[:1000])
 
 
 def has_human_draft(draft):

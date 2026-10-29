@@ -49,5 +49,12 @@ class StorageTests(unittest.TestCase):
         with self.assertRaises(ReviewError) as ctx: self.store.submit(['one'], 0)
         self.assertEqual(ctx.exception.status, 409)
 
+    def test_local_conflict_is_immediately_exposed_in_state(self):
+        d=self.store.state()['drafts'];d['items']['one']={'mode':'keep'}
+        self.store.save(d,0);self.store.submit(['one'],1)
+        d=self.store.state()['drafts'];d['items']['one']={'mode':'accept'}
+        self.store.save(d,2);self.store.submit(['one'],3)
+        self.assertTrue(self.store.state()['comparison']['conflicts'])
+
 
 if __name__ == '__main__': unittest.main()

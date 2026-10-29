@@ -4,7 +4,7 @@
 
 ## 运行示例
 
-需要 Python 3.11+ 与 Git。无需 npm 安装或前端构建。
+需要 Python 3.11+ 与 Git；提交或导入公式决定时还需要 Node.js，以便服务端使用同一份 KaTeX 校验。无需 npm 安装或前端构建。
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -91,7 +91,7 @@ python -m review_workbench compare PACKAGE --current current.json
 
 ```powershell
 python -m unittest discover -s tests -t . -v
-node --test tests/frontend.test.mjs
+node --test tests/frontend.test.mjs tests/drafts.test.mjs
 ```
 
 Python 依赖为 jsonschema 及其传递依赖；HTTP 使用标准库。KaTeX 固定为 0.19.1，资源及 MIT 许可证位于 `web/vendor/katex/`，来源记录在 `VERSION`。设计参考 [Refactoring UI skill](https://github.com/edisonmbli/refactoring-ui-skill)，未复制其书籍内容。

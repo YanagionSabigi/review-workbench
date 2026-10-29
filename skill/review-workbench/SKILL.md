@@ -15,7 +15,7 @@ description: Use when a workflow needs human review of text revisions, terminolo
 python SKILL_DIR/scripts/review.py --help
 ```
 
-源码中的 launcher 自动找到仓库运行资源；独立安装包使用同目录下的 `runtime/`。首次缺依赖时，安装相应运行根目录的 `requirements.txt`。完整输入例子在运行根目录 `examples/demo/package.json`；准备真实材料前读 [通用协议](references/protocol.md)。
+源码中的 launcher 自动找到仓库运行资源；独立安装包使用同目录下的 `runtime/`。首次缺依赖时，安装相应运行根目录的 `requirements.txt`。公式决定的提交/导入需要本机 Node.js，使用同份离线 KaTeX 校验；无需 npm 安装。完整输入例子在运行根目录 `examples/demo/package.json`；准备真实材料前读 [通用协议](references/protocol.md)。
 
 ## 准备一轮审核
 

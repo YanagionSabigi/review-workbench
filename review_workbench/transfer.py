@@ -61,7 +61,7 @@ def export_package(root,output,results_only=False,wheels=False):
         if not results_only:
             copy_runtime(stage)
             (stage/'start_review.py').write_text('from pathlib import Path\nfrom review_workbench.__main__ import main\nimport sys\nif __name__ == "__main__":\n    main(["serve",str(Path(__file__).resolve().parent),*sys.argv[1:]])\n',encoding='utf-8')
-            (stage/'OPEN-ME.txt').write_text('校对包\n\n需要 Python 3.11+ 和 Git。\n首次运行：python -m pip install -r requirements.txt\n启动：python start_review.py\n\n离线依赖（若含 wheels/）：python -m pip install --no-index --find-links wheels -r requirements.txt\n\n回传结果：python -m review_workbench export . --results-only --out ../results.zip\n也可在网页“记录”中下载结果 JSON。\n',encoding='utf-8')
+            (stage/'OPEN-ME.txt').write_text('校对包\n\n需要 Python 3.11+ 和 Git；提交公式决定还需 Node.js（无需 npm）。\n首次运行：python -m pip install -r requirements.txt\n启动：python start_review.py\n\n离线依赖（若含 wheels/）：python -m pip install --no-index --find-links wheels -r requirements.txt\n\n回传结果：python -m review_workbench export . --results-only --out ../results.zip\n也可在网页“记录”中下载结果 JSON。\n',encoding='utf-8')
             if wheels:
                 result=subprocess.run([os.sys.executable,'-m','pip','download','--only-binary=:all:','-r',str(stage/'requirements.txt'),'-d',str(stage/'wheels')],capture_output=True)
                 if result.returncode:raise ReviewError('下载离线依赖失败：'+result.stderr.decode(errors='replace'))

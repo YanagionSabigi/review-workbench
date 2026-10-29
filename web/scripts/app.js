@@ -1,5 +1,6 @@
 import { api } from "./api.js";
 import { el, plain, math, diffText, table } from "./render.js";
+import { restoreBackup, getItemDraft } from "./drafts.js";
 
 const $ = (s) => document.querySelector(s),
   PAGE_SIZE = 24;
@@ -54,13 +55,7 @@ function clearNotice() {
   $("#notice").hidden = true;
 }
 function itemDraft(i) {
-  return (drafts.items[i.id] ??= {
-    mode: null,
-    edits: {},
-    touched: false,
-    comment: "",
-    quotes: [],
-  });
+  return getItemDraft(drafts, i.id);
 }
 function effective(i) {
   const d = itemDraft(i);
@@ -81,7 +76,11 @@ function effective(i) {
             (b.type !== "tex" || texValid(d.edits[b.id])),
       )
     );
-  return d.mode === "keep" || (d.mode === "comment" && d.comment?.trim());
+  return (
+    (d.mode === "keep" &&
+      i.before.every((b) => b.type !== "tex" || texValid(b.text))) ||
+    (d.mode === "comment" && d.comment?.trim())
+  );
 }
 function itemState(i) {
   return effective(i) ? "reviewed" : i.requires_human ? "required" : "pending";
@@ -1218,11 +1217,16 @@ async function boot() {
         [
           "恢复",
           () => {
-            drafts = local.drafts;
-            drafts.revision = remoteRevision;
+            const restored = restoreBackup(local.drafts, drafts);
+            drafts = restored.drafts;
+            blocked = restored.needsComparison;
             markDirty();
-            clearNotice();
             render(true);
+            if (blocked) {
+              clearTimeout(saveTimer);
+              $("#save-state").textContent = "需比较";
+              compareDrafts();
+            } else clearNotice();
           },
         ],
         [

@@ -39,5 +39,16 @@ class ModelTests(unittest.TestCase):
         with self.assertRaises(ReviewError):
             resolve_decision(item, {'mode':'comment','comment':'核对','quotes':[{'item_id':'other','block_id':'body','version':'before','text':'原版','start':0,'end':2}]})
 
+    def test_broken_tex_rejected_for_keep_accept_and_edit(self):
+        item=package()['items'][0]
+        item['before']=item['baseline']=item['proposal']=[{'id':'body','type':'tex','text':r'\definitelyUndefinedMacro{'}]
+        for draft in [{'mode':'keep'},{'mode':'accept'},{'mode':'edit','touched':True,'edits':{'body':r'\definitelyUndefinedMacro{'}}]:
+            with self.subTest(mode=draft['mode']),self.assertRaises(ReviewError):resolve_decision(item,draft)
+        self.assertEqual(resolve_decision(item,{'mode':'comment','comment':'请重做识别','quotes':[]})['processing'],'needs_agent')
+
+    def test_valid_tex_passes(self):
+        item=package()['items'][0];item['proposal']=[{'id':'body','type':'tex','text':r'\sqrt{\pi}'}]
+        self.assertEqual(resolve_decision(item,{'mode':'accept'})['blocks'][0]['text'],r'\sqrt{\pi}')
+
 
 if __name__ == '__main__': unittest.main()
