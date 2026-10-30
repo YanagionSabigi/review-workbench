@@ -27,6 +27,7 @@ class TransferTests(unittest.TestCase):
         with zipfile.ZipFile(archive) as z:z.extractall(moved)
         p=Store(moved).package;verify_baseline(moved,p)
         self.assertTrue((moved/'start_review.py').is_file());self.assertTrue((moved/'web/vendor/katex/katex.min.js').is_file())
+        self.assertTrue((moved/'LICENSE').is_file())
         self.assertNotIn(str(self.root), (moved/'package.json').read_text(encoding='utf-8'))
         other=Store(moved);d=other.state()['drafts'];d['items']['one']={'mode':'keep'};other.save(d,0);other.submit(['one'],1)
         reply=export_package(moved,self.root/'reply.zip',results_only=True)

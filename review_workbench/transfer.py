@@ -19,6 +19,7 @@ def copy_runtime(destination):
     for folder in ('review_workbench','web','schemas','examples','skill'):
         shutil.copytree(ROOT/folder,destination/folder,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
     shutil.copyfile(ROOT/'requirements.txt',destination/'requirements.txt')
+    shutil.copyfile(ROOT/'LICENSE',destination/'LICENSE')
 
 
 def export_skill(output):

@@ -1,6 +1,11 @@
 import { api } from "./api.js";
 import { el, plain, math, diffText, table } from "./render.js";
-import { restoreBackup, getItemDraft } from "./drafts.js";
+import { restoreBackup, getItemDraft, draftDifferences, draftBlocks } from "./drafts.js";
+
+// Refactoring UI §2.1 / §3.3 / §3.3.1: materials first; directory and
+// queue are optional navigation. Reuse the existing color/type/spacing tokens.
+const desktopDirectory = matchMedia("(min-width: 901px)");
+let queueOpen = false;
 
 const $ = (s) => document.querySelector(s),
   PAGE_SIZE = 24;
@@ -166,18 +171,23 @@ async function flush() {
 async function compareDrafts() {
   try {
     const remote = await api("/api/state");
+    const differences = draftDifferences(state.package.items, drafts, remote.drafts);
     showModal(
       "草稿版本差异",
       [
-        el("div", { class: "comparison" }, [
-          el("section", {}, [
-            el("h3", {}, "本页未保存内容"),
-            el("pre", {}, JSON.stringify(drafts.items, null, 2)),
+        el("p", {class: "muted small"}, differences.length
+          ? `${differences.length} 项内容不同。选择将应用到整份草稿。`
+          : "草稿内容相同，保存版本已更新。"),
+        ...differences.map(({item, local, remote: other}) => el("section", {class: "draft-difference"}, [
+          el("h3", {}, `${item.id} · ${item.location || "审核条目"}`),
+          el("div", {class: "comparison"}, [
+            draftVersion(item, local, "本页未保存内容"),
+            draftVersion(item, other, "磁盘上的内容"),
           ]),
-          el("section", {}, [
-            el("h3", {}, "磁盘上的内容"),
-            el("pre", {}, JSON.stringify(remote.drafts.items, null, 2)),
-          ]),
+        ])),
+        el("details", {class: "technical-details"}, [
+          el("summary", {}, "技术详情"),
+          el("pre", {}, JSON.stringify({local: drafts.items, disk: remote.drafts.items}, null, 2)),
         ]),
       ],
       [
@@ -216,6 +226,42 @@ async function compareDrafts() {
   } catch (error) {
     notify(error.message);
   }
+}
+function draftVersion(item, draft, title) {
+  const body = el("div", {class: "draft-version-body"});
+  const names = {accept: "接受建议", keep: "保留原版", edit: "手动修改", comment: "提出修改意见"};
+  body.append(el("p", {class: "draft-mode"}, names[draft.mode] || "未选择处理方式"));
+  for (const block of draftBlocks(item, draft)) body.append(draftPreview(block));
+  if (draft.mode === "edit" && !draft.touched)
+    body.append(el("p", {class: "muted small"}, "尚未编辑，不计为已审"));
+  if (draft.mode === "comment")
+    body.append(el("p", {class: "draft-prose"}, draft.comment?.trim() || "尚未填写意见"));
+  for (const quote of draft.quotes ?? [])
+    body.append(el("blockquote", {class: "quoted"}, quote.text));
+  // Inactive inputs are preserved by mode switching and must remain inspectable.
+  const inactive = [];
+  if (draft.mode !== "comment" && draft.comment)
+    inactive.push(el("p", {class: "draft-prose"}, draft.comment));
+  if (draft.mode !== "edit" && Object.keys(draft.edits ?? {}).length) {
+    inactive.push(el("h3", {}, "手动修改草稿"));
+    for (const block of draftBlocks(item, {...draft, mode: "edit"})) inactive.push(draftPreview(block));
+  }
+  if (draft.shapes?.length)
+    inactive.push(el("p", {class: "muted small"}, `${draft.shapes.length} 条图片标注`));
+  if (inactive.length) body.append(el("details", {class: "inactive-draft"}, [
+    el("summary", {}, "其他草稿内容"), ...inactive,
+  ]));
+  return el("section", {class: "panel draft-version"}, [el("div", {class: "panel-label"}, title), body]);
+}
+function draftPreview(block) {
+  if (block.type === "table") return table(block.rows);
+  if (block.type === "image") return el("img", {class: "source-image", src: assetUrl(block.asset_id), alt: "草稿中的源图"});
+  if (block.type === "tex") {
+    const preview = el("div", {class: "math"});
+    math(preview, block.text);
+    return preview;
+  }
+  return el("p", {class: "text-source draft-prose"}, block.text || "（空白）");
 }
 function filtered(hold = false) {
   return state.package.items.filter(
@@ -347,6 +393,17 @@ function renderStatuses() {
 function renderQueue() {
   const list = currentPage(),
     queue = $("#queue");
+  const current = list.find(i => i.id === activeId);
+  const summary = el("div", {class: "queue-summary"}, [
+    el("button", {
+      id: "queue-toggle", "aria-controls": "queue-content", "aria-expanded": String(queueOpen),
+      onclick: () => {queueOpen = !queueOpen; renderQueue(); $("#queue-toggle").focus();},
+    }, queueOpen ? "收起条目" : "展开条目"),
+    el("span", {class: "queue-current"}, current
+      ? `${filtered(true).findIndex(i => i.id === activeId) + 1} / ${filtered(true).length} · ${current.location || current.id}`
+      : "没有符合条件的条目"),
+  ]);
+  if (!list.length) {queue.replaceChildren(summary); return;}
   const top = el("div", { class: "queue-top" }, [
     el("label", {}, [
       el("input", {
@@ -385,7 +442,9 @@ function renderQueue() {
         "aria-current": activeId === i.id ? "true" : null,
         onclick: () => {
           activeId = i.id;
+          queueOpen = false;
           render(true);
+          $("#queue-toggle").focus();
         },
       },
       [
@@ -433,7 +492,7 @@ function renderQueue() {
       "→",
     ),
   ]);
-  queue.replaceChildren(top, rows, paging);
+  queue.replaceChildren(summary, el("div", {id: "queue-content", hidden: !queueOpen}, [top, rows, paging]));
 }
 function assetUrl(id) {
   const asset = state.package.assets.find((a) => a.id === id);
@@ -1188,10 +1247,13 @@ $("#flow-view").onclick = () => {
   view = "flow";
   render(true);
 };
-$("#directory-toggle").onclick = () => {
-  const value = $("#shell").classList.toggle("directory-open");
-  $("#directory-toggle").setAttribute("aria-expanded", value);
-};
+function setDirectory(open) {
+  $("#shell").classList.toggle("directory-open", open);
+  $("#directory-toggle").setAttribute("aria-expanded", String(open));
+}
+$("#directory-toggle").onclick = () => setDirectory(!$("#shell").classList.contains("directory-open"));
+desktopDirectory.addEventListener("change", e => setDirectory(e.matches));
+setDirectory(desktopDirectory.matches);
 $("#submit").onclick = submit;
 $("#history-toggle").onclick = history;
 $("#modal-close").onclick = closeModal;
