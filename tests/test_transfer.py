@@ -2,6 +2,9 @@ import copy
 import tempfile
 import unittest
 import zipfile
+import subprocess
+import sys
+import os
 from pathlib import Path
 from tests.helpers import package, write_package, init_git
 from review_workbench.gitops import snapshot, verify_baseline
@@ -26,13 +29,43 @@ class TransferTests(unittest.TestCase):
         moved=self.root/'moved';moved.mkdir()
         with zipfile.ZipFile(archive) as z:z.extractall(moved)
         p=Store(moved).package;verify_baseline(moved,p)
-        self.assertTrue((moved/'start_review.py').is_file());self.assertTrue((moved/'web/vendor/katex/katex.min.js').is_file())
+        self.assertTrue((moved/'start_review.py').is_file())
+        for redundant in ('skill','examples','.git','review_workbench/__main__.py','web/vendor/katex'):
+            self.assertFalse((moved/redundant).exists(),redundant)
+        self.assertTrue((moved/'baseline.json').is_file())
+        result=subprocess.run([sys.executable,'-c',
+            "from review_workbench.server import make_server; s=make_server('.'); print('ready'); s.server_close()"],
+            cwd=moved,env={**os.environ,'PATH':''},capture_output=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stderr.decode(errors='replace'))
+        self.assertIn(b'ready',result.stdout)
         self.assertTrue((moved/'LICENSE').is_file())
         self.assertNotIn(str(self.root), (moved/'package.json').read_text(encoding='utf-8'))
         other=Store(moved);d=other.state()['drafts'];d['items']['one']={'mode':'keep'};other.save(d,0);other.submit(['one'],1)
         reply=export_package(moved,self.root/'reply.zip',results_only=True)
         first=import_results(self.review,reply);self.assertEqual(first['imported'],1)
         second=import_results(self.review,reply);self.assertEqual(second['duplicates'],1)
+
+    def test_portable_material_changes_are_rejected(self):
+        archive=export_package(self.review,self.root/'portable.zip')
+        moved=self.root/'moved';moved.mkdir()
+        with zipfile.ZipFile(archive) as z:z.extractall(moved)
+        data=read_json(moved/'package.json');data['title']='changed'
+        atomic_json(moved/'package.json',data)
+        with self.assertRaises(ReviewError):verify_baseline(moved,data)
+
+    def test_formula_package_keeps_offline_renderer(self):
+        data=read_json(self.review/'package.json')
+        for key in ('before','proposal','baseline'):
+            data['items'][0][key][0].update(type='tex',text='x^2')
+        data['base_commit']=None;atomic_json(self.review/'package.json',data)
+        data['base_commit']=snapshot(self.root,['review/package.json'],'formula')
+        atomic_json(self.review/'package.json',data)
+        # The new round has no old drafts.
+        (self.review/'drafts.json').unlink()
+        archive=export_package(self.review,self.root/'formula.zip')
+        with zipfile.ZipFile(archive) as z:
+            self.assertIn('web/vendor/katex/katex.min.js',z.namelist())
+            self.assertIn('web/vendor/katex/LICENSE',z.namelist())
 
     def test_different_decisions_preserved_as_conflict(self):
         first=self.submit('keep');second=copy.deepcopy(first);second['submission_id']='different'

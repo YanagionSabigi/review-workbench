@@ -54,9 +54,9 @@ python -m pip install -r requirements.txt
 python start_review.py
 ```
 
-对方需要 Python 3.11+、Git；提交公式决定时还需要 Node.js。ZIP 中已有网页、公式资源和本轮材料；原业务仓库的历史和账号配置不会复制进去。
+对方需要 Python 3.11+；提交公式决定时还需要 Node.js 18+。接收者无需 Git 或任何 AI skill。ZIP 只含审核材料、网页、必要的 Python 保存/校验服务和依赖说明；公式资源仅在材料含公式时携带，示例、skill、Git 仓库和开发命令行不再打包。启动脚本直接启动本机服务，不安装依赖或联网下载。
 
-完成后，可在网页“记录”中下载结果 JSON，也可以导出仅结果的 ZIP：
+完成后，在网页“记录”中下载结果 JSON 并交回即可。下面的仅结果 ZIP 命令由材料提供者在完整工具仓库中执行，精简审核包不携带命令行工具：
 
 ```sh
 python -m review_workbench export PACKAGE --results-only --out results.zip
