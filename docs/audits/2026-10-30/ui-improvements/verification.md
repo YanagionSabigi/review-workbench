@@ -47,3 +47,5 @@
 增加 MIT LICENSE，版权归属 2026 YanagionSabigi；保留 KaTeX 自带许可证。运行代码导出时携带 MIT 文件。未生成新的 README，也未使用 GitHub 的初始化 README 功能。
 
 演示材料、服务 token 和运行草稿位于忽略的 artifacts 目录，未进入本轮 Git 提交。本轮 GitHub 目标使用用户纠正后的 `YanagionSabigi/review-workbench`。
+
+已创建并核验[公共远程仓库](https://github.com/YanagionSabigi/review-workbench)，默认分支 main，GitHub 识别许可证为 MIT。实现提交 `4164773` 已推送；本地 origin 指向该仓库。现有 README 保留原内容。

@@ -10,4 +10,6 @@
 - [x] 真实页面验证 1280 / 375、目录/列表可达、长文阅读、公式/表格、双页冲突两种选择与刷新恢复。
 - [x] Python/Node 全量回归、独立代码审阅、截图和验证记录。
 - [x] 添加 MIT LICENSE，保留第三方 KaTeX 许可证；提交 Git。
-- [ ] 在指定账号创建 review-workbench 公共仓库，设置 origin 并推送已验证的代码，不让 GitHub 初始化 README。
+- [x] 在指定账号创建 review-workbench 公共仓库，设置 origin 并推送已验证的代码，不让 GitHub 初始化 README。
+
+完成记录：实现提交 `4164773`；Python 33 项、Node 7 项通过，真实桌面/窄屏与双页冲突验证完成。远程仓库为 https://github.com/YanagionSabigi/review-workbench ，origin 已设置，当前功能分支已推送到远程 main；GitHub 确认为公共仓库、MIT License、默认 main。README 无新增或改写。
