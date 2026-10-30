@@ -104,10 +104,10 @@ def read_results(source):
     except (zipfile.BadZipFile,ValueError,KeyError) as exc:raise ReviewError('结果包格式不合法') from exc
 
 
-def history_conflicts(store):
+def history_conflicts(store,submissions=None):
     from .history import active_entries,signature
     by_target={};entries=[];conflicts=[];items={i['id']:i for i in store.package['items']}
-    for s,d in active_entries(store.submissions()):
+    for s,d in active_entries(store.submissions() if submissions is None else submissions):
             e={'item_id':d['item_id'],'target_id':d['target_id'],'submission_id':s['submission_id'],'action':d['action'],
                'status':'needs_agent' if d['action']=='comment' else 'missing_current','baseline':items[d['item_id']]['baseline'],'decision':d}
             entries.append(e)
@@ -163,17 +163,19 @@ def import_results(root,source):
         for key,s in staged.items():
             target=store.root/'submissions'/f'{key}.json'
             if target.exists() and read_json(target)!=s:raise ReviewError('提交编号相同但内容不同',409)
+        new_submissions=[]
         for key,s in staged.items():
             target=store.root/'submissions'/f'{key}.json'
             if target.exists():duplicates+=1
-            else:atomic_json(target,s);imported+=1
-        summary=history_conflicts(store)
+            else:new_submissions.append(s);imported+=1
+        summary=history_conflicts(store,list(all_submissions.values()))
         if imported:
             conflicting={c['target_id'] for c in summary['conflicts']}
             for entry in summary['items']:
                 d=entry['decision'];key=d['item_id']
                 if d['target_id'] not in conflicting and not has_human_draft(draft['items'].get(key,{})):
                     draft['items'][key]={'mode':d['action'],'comment':d.get('instruction',''),'quotes':d.get('quotes',[]),'touched':d['action']=='edit','edits':{b['id']:b.get('rows') if b['type']=='table' else b.get('text') for b in d.get('blocks',[]) if b['type']!='image'}}
-            draft['revision']+=1;atomic_json(store.root/'drafts.json',draft)
-        atomic_json(store.root/'comparison.json',summary)
+            draft['revision']+=1
+            store._commit(draft,new_submissions,summary)
+        else:atomic_json(store.root/'comparison.json',summary)
     return {'imported':imported,'duplicates':duplicates,'conflicts':summary['conflicts']}

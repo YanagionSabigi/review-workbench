@@ -89,6 +89,8 @@ python -m review_workbench compare PACKAGE --current current.json
 
 `package.json` 为冻结材料；`drafts.json` 为自动保存的草稿；`submissions/` 为不可变人工提交；`comparison.json` 为比较结果。运行时锁文件无需人工处理。
 
+提交、导入和冲突解决会先记录 `.pending-operation.json`，再更新相关文件。操作记录成功落盘后，即使服务中途退出或返回保存错误，下次访问也会自动完成这次操作；恢复可重复执行，不重复递增 revision。不要手动删除未完成操作文件。该保证针对进程中断，不等同于物理断电下所有文件系统的持久性保证。比较计算期间若审核版本变化，会拒绝发布旧结果并提示重新运行比较。
+
 ```powershell
 python -m unittest discover -s tests -t . -v
 node --test tests/frontend.test.mjs tests/drafts.test.mjs

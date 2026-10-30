@@ -133,8 +133,12 @@ def compare(root,current):
     if len({t['target_id'] for t in targets})!=len(targets):raise ReviewError('工作稿目标重复')
     by_target={t['target_id']:t['blocks'] for t in targets}
     items={i['id']:i for i in data['items']}
+    with store.lock():
+        revision=store._drafts()['revision']
+        submissions=store.submissions()
+        history_hash=fingerprint(submissions)
     results=[];conflicts=[];seen={}
-    for submission,d in active_entries(store.submissions()):
+    for submission,d in active_entries(submissions):
             item=items[d['item_id']];target=d['target_id']
             entry={'item_id':d['item_id'],'target_id':target,'submission_id':submission['submission_id'],
                    'action':d['action'],'baseline':item['baseline'],'decision':d}
@@ -165,5 +169,8 @@ def compare(root,current):
             if not any(c['target_id']==target and c['reason']=='different_human_decisions' for c in conflicts):
                 conflicts.append({'target_id':target,'reason':'different_human_decisions','submission_ids':[e['submission_id'] for e in entries]})
     output={'package_id':data['package_id'],'base_commit':data['base_commit'],'items':results,'conflicts':conflicts}
-    with store.lock():atomic_json(store.root/'comparison.json',output)
+    with store.lock():
+        if store._drafts()['revision']!=revision or fingerprint(store.submissions())!=history_hash:
+            raise ReviewError('比较期间审核结果已更新，请重新运行比较',409)
+        atomic_json(store.root/'comparison.json',output)
     return output

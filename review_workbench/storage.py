@@ -80,7 +80,51 @@ class Store:
 
     @contextlib.contextmanager
     def lock(self):
-        with self.mutex, file_lock(self.root/'.review.lock'): yield
+        with self.mutex, file_lock(self.root/'.review.lock'):
+            self._recover()
+            yield
+
+    def _recover(self):
+        """Roll forward a durable intent before exposing any package state.
+
+        Called only with the package lock held. Replaying the same intent is
+        safe even when the previous process died after its last data write.
+        """
+        pending=self.root/'.pending-operation.json'
+        if not pending.exists():return
+        intent=read_json(pending)
+        self._assert_frozen()
+        if intent.get('material_hash')!=self.material_hash:
+            raise ReviewError('未完成操作与审核材料不匹配',409)
+        draft=intent['drafts'];submissions=intent['submissions']
+        validate_schema(draft,'drafts')
+        if (draft['package_id'],draft['base_commit'],draft['material_hash'])!=(self.package['package_id'],self.package['base_commit'],self.material_hash):
+            raise ReviewError('未完成操作的草稿基准不匹配',409)
+        # Check every immutable record before changing any file.
+        for submission in submissions:
+            validate_schema(submission,'submission')
+            if (submission['package_id'],submission['base_commit'])!=(self.package['package_id'],self.package['base_commit']):
+                raise ReviewError('未完成操作的提交基准不匹配',409)
+            target=self.root/'submissions'/f"{submission['submission_id']}.json"
+            if target.exists() and read_json(target)!=submission:
+                raise ReviewError('未完成操作与已有提交冲突',409)
+        for submission in submissions:
+            target=self.root/'submissions'/f"{submission['submission_id']}.json"
+            if not target.exists():atomic_json(target,submission)
+        atomic_json(self.root/'drafts.json',draft)
+        atomic_json(self.root/'comparison.json',intent['comparison'])
+        pending.unlink()
+
+    def _commit(self,draft,submissions,comparison):
+        """Record a complete operation, then apply it under the caller's lock.
+
+        Once the intent is durable, subsequent access completes the operation
+        even if the original request never received its success response.
+        """
+        atomic_json(self.root/'.pending-operation.json',{
+            'material_hash':self.material_hash,'drafts':draft,
+            'submissions':submissions,'comparison':comparison})
+        self._recover()
 
     def _assert_frozen(self):
         if fingerprint(read_json(self.root/'package.json'))!=self.material_hash:
@@ -156,11 +200,10 @@ class Store:
             result={'schema_version':'1','package_id':self.package['package_id'],'base_commit':self.package['base_commit'],
                     'submission_id':uuid.uuid4().hex,'decisions':decisions}
             validate_schema(result,'submission')
-            atomic_json(self.root/'submissions'/f"{result['submission_id']}.json",result)
             current['revision']+=1
-            atomic_json(self.root/'drafts.json',current)
             from .transfer import history_conflicts
-            atomic_json(self.root/'comparison.json',history_conflicts(self))
+            summary=history_conflicts(self,self.submissions()+[result])
+            self._commit(current,[result],summary)
             return result
 
     def resolve_conflict(self,target_id,submission_id,item_id,expected_revision):
@@ -177,12 +220,12 @@ class Store:
             # Multiple items in the same submission may concern one target.
             result['resolves']=list({(r['submission_id'],r['target_id']):r for r in result['resolves']}.values())
             validate_schema(result,'submission')
-            atomic_json(self.root/'submissions'/f"{result['submission_id']}.json",result)
             for item in self.package['items']:
                 if item['target_id']==target_id and item['id']!=item_id and item['id'] in draft['items']:
                     draft['items'][item['id']]['mode']=None
             draft['items'][item_id]={'mode':chosen['action'],'comment':chosen.get('instruction',''),'quotes':chosen.get('quotes',[]),'touched':chosen['action']=='edit','edits':{b['id']:b.get('rows') if b['type']=='table' else b.get('text') for b in chosen.get('blocks',[]) if b['type']!='image'}}
-            draft['revision']+=1;atomic_json(self.root/'drafts.json',draft)
+            draft['revision']+=1
             from .transfer import history_conflicts
-            atomic_json(self.root/'comparison.json',history_conflicts(self))
+            summary=history_conflicts(self,self.submissions()+[result])
+            self._commit(draft,[result],summary)
             return result
