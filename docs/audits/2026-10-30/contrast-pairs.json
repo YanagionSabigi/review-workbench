@@ -1,0 +1,54 @@
+{
+  "pairs": [
+    {
+      "name": "ink/paper",
+      "fg": "#242e2a",
+      "bg": "#fbfaf9"
+    },
+    {
+      "name": "muted/paper",
+      "fg": "#5e6863",
+      "bg": "#fbfaf9"
+    },
+    {
+      "name": "ink/surface",
+      "fg": "#242e2a",
+      "bg": "#ffffff"
+    },
+    {
+      "name": "muted/surface",
+      "fg": "#5e6863",
+      "bg": "#ffffff"
+    },
+    {
+      "name": "action/action-soft",
+      "fg": "#276253",
+      "bg": "#ebf4f2"
+    },
+    {
+      "name": "surface/action",
+      "fg": "#ffffff",
+      "bg": "#276253"
+    },
+    {
+      "name": "blue/blue-soft",
+      "fg": "#2b5988",
+      "bg": "#ebf2fa"
+    },
+    {
+      "name": "red/red-soft",
+      "fg": "#90312c",
+      "bg": "#faf0ef"
+    },
+    {
+      "name": "green/green-soft",
+      "fg": "#2b694d",
+      "bg": "#eaf5f0"
+    },
+    {
+      "name": "muted/soft",
+      "fg": "#5e6863",
+      "bg": "#f5f3f0"
+    }
+  ]
+}
