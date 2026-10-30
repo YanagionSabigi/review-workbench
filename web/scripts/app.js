@@ -181,18 +181,18 @@ async function compareDrafts() {
         ...differences.map(({item, local, remote: other}) => el("section", {class: "draft-difference"}, [
           el("h3", {}, `${item.id} · ${item.location || "审核条目"}`),
           el("div", {class: "comparison"}, [
-            draftVersion(item, local, "本页未保存内容"),
-            draftVersion(item, other, "磁盘上的内容"),
+            draftVersion(item, local, "本机版本"),
+            draftVersion(item, other, "该文件版本"),
           ]),
         ])),
         el("details", {class: "technical-details"}, [
           el("summary", {}, "技术详情"),
-          el("pre", {}, JSON.stringify({local: drafts.items, disk: remote.drafts.items}, null, 2)),
+          el("pre", {}, JSON.stringify({local: drafts.items, file: remote.drafts.items}, null, 2)),
         ]),
       ],
       [
         [
-          "保留磁盘版本",
+          "保留该文件版本",
           () => {
             drafts = structuredClone(remote.drafts);
             remoteRevision = drafts.revision;
@@ -205,10 +205,10 @@ async function compareDrafts() {
           },
         ],
         [
-          "使用本页版本",
+          "使用本机版本",
           async () => {
             if (remote.drafts.material_hash !== drafts.material_hash) {
-              notify("材料已经改变，请下载本页草稿并建立新一轮。");
+              notify("材料已经改变，请下载本机草稿并建立新一轮。");
               return;
             }
             remoteRevision = remote.drafts.revision;
@@ -1275,7 +1275,7 @@ async function boot() {
     render();
     const local = JSON.parse(sessionStorage.getItem(backupKey()) || "null");
     if (local && local.material_hash === drafts.material_hash)
-      notify("发现本页未保存的草稿。", [
+      notify("发现本机未保存的草稿。", [
         [
           "恢复",
           () => {
