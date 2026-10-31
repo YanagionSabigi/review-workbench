@@ -265,9 +265,18 @@ main {
   flex-shrink: 0;
   border-color: transparent;
 }
-#directory-toggle[aria-expanded="true"] {
-  background: var(--action-soft);
-  color: var(--action);
+#directory-toggle {
+  color: var(--muted);
+}
+#directory-toggle:hover {
+  background: transparent;
+}
+#directory-toggle .sidebar-icon-open,
+#directory-toggle[aria-expanded="true"] .sidebar-icon-closed {
+  display: none;
+}
+#directory-toggle[aria-expanded="true"] .sidebar-icon-open {
+  display: inline;
 }
 #directory-toggle svg {
   flex-shrink: 0;
@@ -570,7 +579,6 @@ ins {
   justify-content: flex-end;
   gap: var(--space-3);
 }
-.navigation-hint { font-size: var(--text-small); }
 .item-footer .next-item {
   min-height: 48px;
   padding: 12px 24px;
@@ -581,9 +589,6 @@ ins {
   font-weight: 600;
 }
 .item-footer .next-item:hover { filter: brightness(1.1); }
-@media (max-width: 600px) {
-  .navigation-hint { display: none; }
-}
 table {
   border-collapse: collapse;
   width: 100%;

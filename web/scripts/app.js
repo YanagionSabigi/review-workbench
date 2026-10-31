@@ -756,7 +756,6 @@ function article(i) {
     el("footer", { class: "item-footer" }, [
       `${state.package.items.indexOf(i) + 1} / ${state.package.items.length}`,
       view === "focus" ? el("div", {class: "item-navigation"}, [
-        el("span", {class: "navigation-hint"}, "← 上一项 · → / 空格 下一项"),
         el("button", {class: "next-item", onclick: () => nextItem(i)}, "下一项 →"),
       ]) : null,
     ]),
