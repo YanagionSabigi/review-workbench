@@ -41,7 +41,7 @@ python -m review_workbench serve demo-project/review
 工作台接收一个审核包，里面包含原版、建议和参考材料。准备工作通常交给 AI skill，也可以照示例手动整理。
 
 - **使用自己的材料**：[操作指南](docs/usage.md)介绍准备、启动和继续一轮审核的方法。
-- **转交他人**：可以导出精简 ZIP；对方无需 Git 或 AI skill，解压后在本机校对，再把结果交回。具体步骤见[转交与回收](docs/usage.md#转交与回收)。
+- **转交他人**：可以导出精简 ZIP；对方无需 Git 或 AI skill；Windows 解压后可双击“开始校对.cmd”，启动步骤与依赖要求统一写在包内 OPEN-ME.txt，再把结果交回。具体步骤见[转交与回收](docs/usage.md#转交与回收)。
 - **接入 AI 工作流**：从 [review-workbench skill](skill/review-workbench/SKILL.md)开始；输入格式见[协议](skill/review-workbench/references/protocol.md)和[完整示例](examples/demo/package.json)。
 
 网页和审核数据由本机服务提供，使用时无需登录。多人或多个窗口给出不同决定时，工作台会保留冲突，供你明确选择。草稿比较中的“本机版本”指当前会话的修改，“该文件版本”指审核文件里已经保存的内容。

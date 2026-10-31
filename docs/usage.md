@@ -47,12 +47,13 @@ python -m review_workbench serve NEW_PACKAGE_DIR
 python -m review_workbench export PACKAGE --out review.zip
 ```
 
-对方解压后，在解压目录运行：
+对方先完整解压 ZIP，再打开 `OPEN-ME.txt`。这一个文件同时说明双击哪个文件、Python/Node.js 版本、首次依赖安装和结果回传：
 
-```sh
-python -m pip install -r requirements.txt
-python start_review.py
-```
+- Windows：环境已准备好后双击 `开始校对.cmd`。
+- macOS：可双击 `start_review.command`；若解压工具未保留执行权限，在终端运行 `python3 start_review.py`。
+- Linux：在解压目录运行 `python3 start_review.py`。
+
+入口会自动打开浏览器，启动失败时保留提示；不要直接打开 `web/index.html`，它不能启动保存服务。依赖仅需首次手动安装，启动入口不会安装或下载东西。命令行用户仍可使用 `python start_review.py`，或先用 `--check` 检查 Python 与依赖。
 
 对方需要 Python 3.11+；提交公式决定时还需要 Node.js 18+。接收者无需 Git 或任何 AI skill。ZIP 只含审核材料、网页、必要的 Python 保存/校验服务和依赖说明；公式资源仅在材料含公式时携带，示例、skill、Git 仓库和开发命令行不再打包。启动脚本直接启动本机服务，不安装依赖或联网下载。
 

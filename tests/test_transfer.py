@@ -53,6 +53,25 @@ class TransferTests(unittest.TestCase):
         atomic_json(moved/'package.json',data)
         with self.assertRaises(ReviewError):verify_baseline(moved,data)
 
+    def test_beginner_launcher_and_missing_dependency_help(self):
+        archive=export_package(self.review,self.root/'launch.zip')
+        moved=self.root/'friend package 中文';moved.mkdir()
+        with zipfile.ZipFile(archive) as z:z.extractall(moved)
+        self.assertTrue((moved/'开始校对.cmd').is_file())
+        self.assertTrue((moved/'start_review.command').is_file())
+        with zipfile.ZipFile(archive) as z:
+            self.assertEqual((z.getinfo('start_review.command').external_attr>>16)&0o111,0o111)
+        result=subprocess.run([sys.executable,str(moved/'start_review.py'),'--check'],capture_output=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stderr.decode(errors='replace'))
+        missing=subprocess.run([sys.executable,'-S',str(moved/'start_review.py'),'--check'],capture_output=True,timeout=20)
+        self.assertNotEqual(missing.returncode,0)
+        self.assertIn(b'requirements.txt',missing.stdout)
+        self.assertNotIn(b'Traceback',missing.stderr)
+        if os.name=='nt':
+            command='cmd.exe /d /s /c ""'+str(moved/'开始校对.cmd')+'" --check"'
+            launched=subprocess.run(command,capture_output=True,timeout=30)
+            self.assertEqual(launched.returncode,0,(launched.stdout+launched.stderr).decode('utf-8',errors='replace'))
+
     def test_formula_package_keeps_offline_renderer(self):
         data=read_json(self.review/'package.json')
         for key in ('before','proposal','baseline'):
