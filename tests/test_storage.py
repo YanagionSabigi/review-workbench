@@ -44,6 +44,18 @@ class StorageTests(unittest.TestCase):
         self.store.save(draft, 0)
         self.assertEqual(self.store.bulk_candidates(['one','two']), [])
 
+    def test_bulk_keeps_original_without_proposal_and_skips_required(self):
+        data = self.store.package
+        data['items'][0]['proposal'] = None
+        root = self.store.root / 'without-proposal'
+        write_package(root, data)
+        self.store = Store(root)
+        self.assertEqual(self.store.bulk_candidates(['one', 'two']), ['one'])
+        result = self.store.bulk_accept(['one', 'two'], 0)
+        self.assertEqual(result['accepted'], ['one'])
+        self.assertEqual(result['drafts']['items']['one']['mode'], 'keep')
+        self.assertNotIn('two', result['drafts']['items'])
+
     def test_frozen_material_change_rejected(self):
         write_package(self.tmp.name, {**self.store.package, 'title':'changed'})
         with self.assertRaises(ReviewError) as ctx: self.store.submit(['one'], 0)

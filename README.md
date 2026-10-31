@@ -4,16 +4,16 @@
 
 支持文字修订、术语、图片、TeX 公式和表格。网页在本机运行，无需账号，也无需构建前端。
 
-![逐条审核：目录默认收起，正文并排对照](docs/images/review-focus.jpg)
+![逐条审核：目录默认收起，正文并排对照](docs/images/review-focus.png)
 
 ## 下载与开始
 
-当前版本：[0.2.0](https://github.com/YanagionSabigi/review-workbench/releases/tag/v0.2.0)。两个 ZIP 面向不同用途：
+当前版本：[0.3.0](https://github.com/YanagionSabigi/review-workbench/releases/tag/v0.3.0)。两个 ZIP 面向不同用途：
 
 | 你要做什么 | 下载哪个包 | 怎么开始 |
 | --- | --- | --- |
-| 为自己的 AI 工作流接入校对能力 | [技能包](https://github.com/YanagionSabigi/review-workbench/releases/download/v0.2.0/review-workbench-skill-0.2.0.zip) | 将解压后的 `review-workbench/` 放入所用工具的 skills 目录，按包内 SKILL.md 接入 |
-| 先体验一次人工审核 | [演示审核包](https://github.com/YanagionSabigi/review-workbench/releases/download/v0.2.0/review-workbench-demo-0.2.0.zip) | 完整解压，阅读 `OPEN-ME.txt`，准备好依赖后启动 |
+| 为自己的 AI 工作流接入校对能力 | [技能包](https://github.com/YanagionSabigi/review-workbench/releases/download/v0.3.0/review-workbench-skill-0.3.0.zip) | 将解压后的 `review-workbench/` 放入所用工具的 skills 目录，按包内 SKILL.md 接入 |
+| 先体验一次人工审核 | [演示审核包](https://github.com/YanagionSabigi/review-workbench/releases/download/v0.3.0/review-workbench-demo-0.3.0.zip) | 完整解压，阅读 `OPEN-ME.txt`，准备好依赖后启动 |
 
 如果别人已经发给你一份审核包，直接使用对方的包即可。Windows 双击 **`开始校对.cmd`**；macOS 可使用 `start_review.command`；Linux 在解压目录运行 `python3 start_review.py`。启动步骤、依赖版本和结果回传方法都写在包内 **`OPEN-ME.txt`**。
 
@@ -21,11 +21,13 @@
 
 ## 怎么审核
 
-左上角的侧边栏图标用于展开或收起目录，鼠标悬停会提示当前动作。目录与条目列表默认收起，需要切换材料时点击“展开条目”。
+左上角的侧边栏图标随目录展开、收起切换形状，鼠标悬停会提示当前动作。目录与条目列表默认收起，需要切换材料时点击“展开条目”。
 
-- **逐条审核**：一次专注一项，用“下一项”继续。
+- **逐条审核**：一次专注一项，用放大的“下一项”按钮继续，也可用 ← 返回上一项、→ 或空格进入下一项。编辑文字或打开对话框时保留原有键盘操作。
 - **连续审核**：把当前页的材料连续排列，直接向下阅读和处理。
 - **筛选与搜索**：按目录、内容类型、关注点和审核状态找到材料。
+
+条目与目录用整块颜色区分状态：蓝色待审、绿色已审、红色必审。展开条目后，左上角的全选图标直接批准本页：有建议时采用建议，无建议时保留原文；必审项、已有人工草稿或已提交的条目会跳过。
 
 每项有四种处理方式，选择后显示相应输入：
 
@@ -41,15 +43,11 @@
 多个窗口产生不同草稿时，可以比较“本机版本”和“该文件版本”中的实际内容，再明确选择保留哪份草稿。
 
 <details>
-<summary>查看连续审核与手机界面</summary>
+<summary>查看条目与目录的审核状态</summary>
 
-展开目录后，可以按章节、内容或关注点筛选。连续审核的卡片不显示“下一项”按钮。
+展开条目和侧栏后，整块底色区分蓝色待审、绿色已审和红色必审；左上角全选图标直接处理本页，跳过必审项。
 
-![展开侧栏后的连续审核](docs/images/review-continuous.jpg)
-
-窄屏下保留同样的审核入口，原版与建议上下排列。
-
-<img src="docs/images/review-mobile.jpg" alt="手机窄屏逐条审核" width="360" />
+![条目与目录：蓝色待审、绿色已审、红色必审](docs/images/review-status.png)
 
 </details>
 
