@@ -1,13 +1,74 @@
 # 校对工作台 · Review Workbench
-该项目的作用是给其他各类 SKILL 提供一个校对工作台的基座。其它 SKILL 完成任何工作都可以使用该 SKILL 的功能产生便于人类用户交互的校对界面。
 
-在浏览器里逐项对照原稿、修改建议和参考材料，留下你的决定，再交回给负责修改的人或 AI。适合译文审校、术语统一、OCR 校正，以及公式、图片和表格的人工核对。
+为其他 skill 提供可复用的人工校对界面。翻译、OCR、写作等工作流可以把需要人判断的内容整理成审核包，让用户在浏览器里对照原版、建议和参考材料，随后读取审核结果继续处理原稿。
 
-![校对工作台界面](docs/audits/2026-10-30/ui-improvements/desktop.jpg)
+支持文字修订、术语、图片、TeX 公式和表格。网页在本机运行，无需账号，也无需构建前端。
+
+![逐条审核：目录默认收起，正文并排对照](docs/images/review-focus.jpg)
+
+## 下载与开始
+
+当前版本：[0.2.0](https://github.com/YanagionSabigi/review-workbench/releases/tag/v0.2.0)。两个 ZIP 面向不同用途：
+
+| 你要做什么 | 下载哪个包 | 怎么开始 |
+| --- | --- | --- |
+| 为自己的 AI 工作流接入校对能力 | [技能包](https://github.com/YanagionSabigi/review-workbench/releases/download/v0.2.0/review-workbench-skill-0.2.0.zip) | 将解压后的 `review-workbench/` 放入所用工具的 skills 目录，按包内 SKILL.md 接入 |
+| 先体验一次人工审核 | [演示审核包](https://github.com/YanagionSabigi/review-workbench/releases/download/v0.2.0/review-workbench-demo-0.2.0.zip) | 完整解压，阅读 `OPEN-ME.txt`，准备好依赖后启动 |
+
+如果别人已经发给你一份审核包，直接使用对方的包即可。Windows 双击 **`开始校对.cmd`**；macOS 可使用 `start_review.command`；Linux 在解压目录运行 `python3 start_review.py`。启动步骤、依赖版本和结果回传方法都写在包内 **`OPEN-ME.txt`**。
+
+收件人需要 Python 3.11+ 和首次安装的 Python 依赖；提交公式决定时还需要 Node.js 18+。**无需 Git 或 AI skill**。启动入口不会自动安装或下载东西，缺少环境时会给出提示。macOS 入口尚未在 macOS 真机运行验证。
+
+## 怎么审核
+
+左上角的侧边栏图标用于展开或收起目录，鼠标悬停会提示当前动作。目录与条目列表默认收起，需要切换材料时点击“展开条目”。
+
+- **逐条审核**：一次专注一项，用“下一项”继续。
+- **连续审核**：把当前页的材料连续排列，直接向下阅读和处理。
+- **筛选与搜索**：按目录、内容类型、关注点和审核状态找到材料。
+
+每项有四种处理方式，选择后显示相应输入：
+
+| 处理方式 | 你的决定 |
+| --- | --- |
+| 接受建议 | 采用建议内容 |
+| 保留原版 | 保留原版内容 |
+| 手动修改 | 编辑文字、TeX 或表格 |
+| 提出修改意见 | 留下需要继续处理的意见，也可选中文字后引用 |
+
+右上角“已保存”表示草稿已保存，重新打开后可以继续。完成后点击“提交本轮”，选择这次要交回的条目，再从“记录”下载结果 JSON。上游 skill 或负责修改的人根据提交结果继续处理原稿；尚未提交的草稿不作为最终决定。
+
+多个窗口产生不同草稿时，可以比较“本机版本”和“该文件版本”中的实际内容，再明确选择保留哪份草稿。
+
+<details>
+<summary>查看连续审核与手机界面</summary>
+
+展开目录后，可以按章节、内容或关注点筛选。连续审核的卡片不显示“下一项”按钮。
+
+![展开侧栏后的连续审核](docs/images/review-continuous.jpg)
+
+窄屏下保留同样的审核入口，原版与建议上下排列。
+
+<img src="docs/images/review-mobile.jpg" alt="手机窄屏逐条审核" width="360" />
+
+</details>
+
+图片可放大查看；提供整页图时也能打开整页。TeX 编辑会实时预览，渲染范围以 KaTeX 为准。图片圈画尚无操作界面。
+
+## 接入自己的工作流
+
+基本流程是：**准备材料 → 人工审核 → 回传决定 → 继续处理原稿**。
+
+上游 skill 负责整理原版、建议、证据与待审核范围；工作台负责展示、保存草稿和提交记录。审核包可以导出给他人，再导入对方回传的结果。收件人包只包含审核运行所需文件，公式资源按需携带，不夹带 skill、示例源码或 Git 仓库。
+
+- [SKILL 入口](skill/review-workbench/SKILL.md)：调用方式和上游工作流的职责。
+- [操作指南](docs/usage.md)：自己的材料、转交他人、回收结果和版本比较。
+- [输入与回传协议](skill/review-workbench/references/protocol.md)：数据字段和约束。
+- [完整输入示例](examples/demo/package.json)：六条可运行演示材料。
 
 ## 先试一下
 
-需要 **Python 3.11+** 和 **Git**。如果要提交或导入公式的审核结果，还需要 **Node.js**。前端资源随项目提供，无需安装 npm 依赖或构建网页。
+从源码运行需要 Python 3.11+ 和 Git；提交或导入公式决定还需 Node.js 18+。无需 npm 安装。
 
 ```sh
 git clone https://github.com/YanagionSabigi/review-workbench.git
@@ -17,40 +78,11 @@ python -m review_workbench demo --out demo-project
 python -m review_workbench serve demo-project/review
 ```
 
-启动后会自动打开本机网页。演示包含六条材料，可以试着改一段文字、核对公式或给表格留意见。再次打开演示时，运行最后一条命令即可；之前保存的内容会保留。若网页没有自动打开，使用终端给出的完整链接。
-
-## 怎么校对
-
-用目录和筛选找到材料，点击“展开条目”切换审核对象。“逐条审核”一次看一项，也可以切到“连续审核”；目录和条目列表默认收起，给正文留出空间。
-
-每一项可以选择一种处理方式：
-
-| 处理方式 | 用途 |
-| --- | --- |
-| 接受建议 | 采用右侧的建议内容 |
-| 保留原版 | 采用左侧的原版内容 |
-| 手动修改 | 直接编辑文字、TeX 或表格 |
-| 提出修改意见 | 留下需要继续处理的意见；选中文字后也可以引用 |
-
-右上角“已保存”表示草稿已经保存。完成后点击“提交本轮”，选定要交回的条目。提出意见后，仍需由负责修改的人或 AI 处理；工作台保存审核结果，原稿的写回由原工作流程完成。
-
-图片可放大查看，提供整页图时也能打开整页；TeX 编辑会实时预览。公式预览使用 KaTeX，可用命令范围与完整 LaTeX 有区别。图片圈画尚无操作界面。
-
-## 用自己的材料，或交给别人校对
-
-工作台接收一个审核包，里面包含原版、建议和参考材料。准备工作通常交给 AI skill，也可以照示例手动整理。
-
-- **使用自己的材料**：[操作指南](docs/usage.md)介绍准备、启动和继续一轮审核的方法。
-- **转交他人**：可以导出精简 ZIP；对方无需 Git 或 AI skill；Windows 解压后可双击“开始校对.cmd”，启动步骤与依赖要求统一写在包内 OPEN-ME.txt，再把结果交回。具体步骤见[转交与回收](docs/usage.md#转交与回收)。
-- **接入 AI 工作流**：从 [review-workbench skill](skill/review-workbench/SKILL.md)开始；输入格式见[协议](skill/review-workbench/references/protocol.md)和[完整示例](examples/demo/package.json)。
-
-网页和审核数据由本机服务提供，使用时无需登录。多人或多个窗口给出不同决定时，工作台会保留冲突，供你明确选择。草稿比较中的“本机版本”指当前会话的修改，“该文件版本”指审核文件里已经保存的内容。
+启动后会自动打开浏览器；未自动打开时，使用终端给出的完整链接。再次继续这份演示，只需运行最后一条命令。
 
 ## 参与开发
 
-欢迎通过 [Issues](https://github.com/YanagionSabigi/review-workbench/issues)反馈问题或提交 Pull Request。报告界面问题时，附上操作步骤、浏览器和窗口大小会更方便复现；示例材料请尽量使用可公开的内容。
-
-在仓库目录运行测试：
+欢迎通过 [Issues](https://github.com/YanagionSabigi/review-workbench/issues)反馈问题或提交 Pull Request。界面问题请附上操作步骤、浏览器和窗口大小，示例材料尽量使用可公开的内容。
 
 ```sh
 python -m unittest discover -s tests -t . -v
@@ -59,4 +91,4 @@ node --test tests/frontend.test.mjs tests/drafts.test.mjs
 
 ## 许可与致谢
 
-项目采用 [MIT 协议](LICENSE)。公式渲染使用 [KaTeX](https://katex.org/)，其许可证随[内置资源](web/vendor/katex/LICENSE)保留。界面设计参考 [Refactoring UI skill](https://github.com/edisonmbli/refactoring-ui-skill)。
+采用 [MIT 协议](LICENSE)。公式渲染使用 [KaTeX](https://katex.org/)，其[许可证](web/vendor/katex/LICENSE)随资源保留。界面设计参考 [Refactoring UI skill](https://github.com/edisonmbli/refactoring-ui-skill)。
