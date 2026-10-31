@@ -1,3 +1,4 @@
+import { adjacentItem, navigationStep } from "./navigation.js";
 import { api } from "./api.js";
 import { el, plain, math, diffText, table } from "./render.js";
 import { restoreBackup, getItemDraft, draftDifferences, draftBlocks } from "./drafts.js";
@@ -16,8 +17,7 @@ let state,
   query = "",
   facets = new Set(),
   page = 0,
-  view = "focus",
-  selected = new Set();
+  view = "focus";
 let dirty = false,
   generation = 0,
   saveTimer,
@@ -313,12 +313,16 @@ function renderSidebar() {
     el("div", { class: "nav-label" }, "目录"),
   );
   const nav = el("nav", { class: "nav", "aria-label": "主目录" });
-  for (const g of [{ id: "all", title: "全部材料" }, ...p.groups])
+  for (const g of [{ id: "all", title: "全部材料" }, ...p.groups]) {
+    const members = p.items.filter(i => g.id === "all" || i.group_id === g.id);
+    const groupState = members.length && members.every(effective) ? "reviewed"
+      : members.some(i => itemState(i) === "required") ? "required" : "pending";
     nav.append(
       el(
         "button",
         {
-          class: group === g.id ? "active" : "",
+          class: `status-card ${groupState} ${group === g.id ? "active" : ""}`,
+          "aria-label": `${g.title} · ${{reviewed: "已审", required: "必审", pending: "待审"}[groupState]}`,
           onclick: () => {
             group = g.id;
             page = 0;
@@ -335,6 +339,7 @@ function renderSidebar() {
         ],
       ),
     );
+  }
   side.append(nav);
   for (const f of p.facets) {
     side.append(el("div", { class: "nav-label" }, f.title));
@@ -392,52 +397,27 @@ function renderStatuses() {
 function renderQueue() {
   const list = currentPage(),
     queue = $("#queue");
-  const current = list.find(i => i.id === activeId);
   const summary = el("div", {class: "queue-summary"}, [
     el("button", {
       id: "queue-toggle", "aria-controls": "queue-content", "aria-expanded": String(queueOpen),
       onclick: () => {queueOpen = !queueOpen; renderQueue(); $("#queue-toggle").focus();},
     }, queueOpen ? "收起条目" : "展开条目"),
-    el("span", {class: "queue-current"}, current
-      ? `${filtered(true).findIndex(i => i.id === activeId) + 1} / ${filtered(true).length} · ${current.location || current.id}`
-      : "没有符合条件的条目"),
   ]);
   if (!list.length) {queue.replaceChildren(summary); return;}
   const top = el("div", { class: "queue-top" }, [
-    el("label", {}, [
-      el("input", {
-        type: "checkbox",
-        "aria-label": "选择本页",
-        checked: list.length > 0 && list.every((i) => selected.has(i.id)),
-        onchange: (e) => {
-          for (const i of list)
-            e.target.checked ? selected.add(i.id) : selected.delete(i.id);
-          renderQueue();
-        },
-      }),
-      ` ${filtered(true).length} 项`,
-    ]),
-    el(
-      "button",
-      { onclick: () => batchApprove() },
-      selected.size ? `批准所选 ${selected.size}` : "批准本页",
-    ),
+    el("button", {
+      class: "approve-all", "aria-label": "全选批准本页",
+      title: "全选本页，跳过必审",
+      onclick: () => batchApprove(),
+    }, [el("span", {class: "select-all-icon", "aria-hidden": "true"}, "☰"), "全选批准"]),
+    el("span", {}, `${filtered(true).length} 项`),
   ]);
   const rows = el("div", { class: "queue-list" });
   for (const i of list) {
-    const pick = el("input", {
-      type: "checkbox",
-      "aria-label": `选择 ${i.id}`,
-      checked: selected.has(i.id),
-      onchange: (e) => {
-        e.target.checked ? selected.add(i.id) : selected.delete(i.id);
-        renderQueue();
-      },
-    });
     const button = el(
       "button",
       {
-        class: `queue-item ${activeId === i.id ? "active" : ""}`,
+        class: `queue-item status-card ${itemState(i)} ${activeId === i.id ? "active" : ""}`,
         "aria-current": activeId === i.id ? "true" : null,
         onclick: () => {
           activeId = i.id;
@@ -448,14 +428,13 @@ function renderQueue() {
       },
       [
         el("div", { class: "queue-meta" }, [
-          el("span", { class: `dot ${itemState(i)}` }),
           el("span", { class: "mono" }, i.id),
           statusName(i),
         ]),
         el("div", { class: "queue-title" }, i.location || i.id),
       ],
     );
-    rows.append(el("div", { class: "queue-row" }, [pick, button]));
+    rows.append(el("div", { class: "queue-row" }, [button]));
   }
   const listCount = filtered(true).length;
   const paging = el("div", { class: "queue-pagination" }, [
@@ -466,7 +445,6 @@ function renderQueue() {
         onclick: () => {
           page--;
           activeId = null;
-          selected.clear();
           render();
         },
       },
@@ -484,7 +462,6 @@ function renderQueue() {
         onclick: () => {
           page++;
           activeId = null;
-          selected.clear();
           render();
         },
       },
@@ -714,7 +691,7 @@ function article(i) {
   if (i.rationale)
     article.append(
       el("div", { class: "explanation" }, [
-        el("strong", {}, "修改依据"),
+        el("strong", {}, "🤖 修改依据"),
         `　${i.rationale}`,
       ]),
     );
@@ -778,24 +755,30 @@ function article(i) {
   article.append(
     el("footer", { class: "item-footer" }, [
       `${state.package.items.indexOf(i) + 1} / ${state.package.items.length}`,
-      view === "focus" ? el("button", { onclick: () => nextItem(i) }, "下一项 →") : null,
+      view === "focus" ? el("div", {class: "item-navigation"}, [
+        el("span", {class: "navigation-hint"}, "← 上一项 · → / 空格 下一项"),
+        el("button", {class: "next-item", onclick: () => nextItem(i)}, "下一项 →"),
+      ]) : null,
     ]),
   );
   return article;
 }
-function nextItem(i) {
-  const list = filtered(false),
-    index = list.findIndex((x) => x.id === i.id);
-  if (!list.length) {
-    activeId = null;
-    render();
-    return;
-  }
-  const next = list[index < 0 ? 0 : (index + 1) % list.length];
-  activeId = next.id;
-  page = Math.floor(list.indexOf(next) / PAGE_SIZE);
+function nextItem(i, step = 1) {
+  const list = filtered(false);
+  const next = adjacentItem(state.package.items, list, i.id, step);
+  activeId = next?.id;
+  page = next ? Math.floor(list.indexOf(next) / PAGE_SIZE) : 0;
   render(true);
+  $("#articles").scrollIntoView({block: "start"});
 }
+document.addEventListener("keydown", event => {
+  if (!state || view !== "focus" || document.querySelector("dialog[open]")) return;
+  const step = navigationStep(event);
+  const item = state.package.items.find(i => i.id === activeId);
+  if (!step || !item) return;
+  event.preventDefault();
+  nextItem(item, step);
+});
 function render(hold = false) {
   if (!state) return;
   const list = currentPage(hold);
@@ -853,40 +836,24 @@ function showModal(title, nodes, actions = []) {
 function closeModal() {
   $("#modal").close();
 }
+let batchBusy = false;
 async function batchApprove() {
+  if (batchBusy) return;
+  batchBusy = true;
   try {
+    const ids = currentPage().map(i => i.id);
     await flush();
-    const ids = selected.size ? [...selected] : currentPage().map((i) => i.id);
-    const preview = await api("/api/bulk-preview", "POST", { item_ids: ids });
-    showModal(
-      "批准推荐方案",
-      [
-        el(
-          "p",
-          {},
-          `将批准 ${preview.eligible.length} 项，跳过 ${ids.length - preview.eligible.length} 项。`,
-        ),
-      ],
-      [
-        ["取消", closeModal],
-        [
-          "批准",
-          async () => {
-            const result = await api("/api/bulk", "POST", {
-              item_ids: ids,
-              expected_revision: remoteRevision,
-            });
-            drafts = result.drafts;
-            remoteRevision = drafts.revision;
-            selected.clear();
-            closeModal();
-            render(true);
-          },
-        ],
-      ],
-    );
+    const result = await api("/api/bulk", "POST", {
+      item_ids: ids, expected_revision: remoteRevision,
+    });
+    drafts = result.drafts;
+    remoteRevision = drafts.revision;
+    render(true);
+    notify(`已批准 ${result.accepted.length} 项（无建议的保留原文），跳过 ${ids.length - result.accepted.length} 项（必审、已有人工草稿或已提交）。`);
   } catch (error) {
     notify(error.message);
+  } finally {
+    batchBusy = false;
   }
 }
 async function submit() {
@@ -895,7 +862,6 @@ async function submit() {
     const all = state.package.items.filter(effective),
       chosen = new Set(
         all
-          .filter((i) => !selected.size || selected.has(i.id))
           .map((i) => i.id),
       );
     const nodes = [
